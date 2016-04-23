@@ -14,6 +14,8 @@ import os
 from ops import binary_cross_entropy_with_logits
 from utils import progress
 
+import ipdb
+
 class NTM(object):
     def __init__(self, cell, sess,
                  min_length, max_length,
@@ -132,7 +134,7 @@ class NTM(object):
                     loss = sequence_loss(logits=self.outputs[seq_length],
                                         targets=self.true_outputs[0:seq_length],
                                         weights=[1] * seq_length,
-                                        num_decoder_symbols=-1, # trash
+                                        #num_decoder_symbols=-1, # trash
                                         average_across_timesteps=False,
                                         average_across_batch=False,
                                         softmax_loss_function=\
@@ -148,7 +150,7 @@ class NTM(object):
 
                     grads = []
                     for grad in tf.gradients(loss, self.params):
-                        if grad:
+                        if grad is not None:
                             grads.append(tf.clip_by_value(grad,
                                                           self.min_grad,
                                                           self.max_grad))
