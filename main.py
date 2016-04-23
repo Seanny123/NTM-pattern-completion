@@ -21,7 +21,7 @@ FLAGS = flags.FLAGS
 def main(_):
     pp.pprint(flags.FLAGS.__flags)
 
-    with tf.device('/cpu:0'), tf.Session() as sess:
+    with tf.device('/gpu:0'), tf.Session() as sess:
         if FLAGS.task == 'copy':
             if FLAGS.is_train:
                 cell, ntm = copy_train(FLAGS, sess)

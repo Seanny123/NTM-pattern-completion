@@ -105,7 +105,9 @@ def recall_train(config):
     return cell, ntm
 
 def generate_recall_sequence(num_items, item_length, input_dim):
-    """this should actually return two arrays"""
+    """this should actually return two arrays, the input and the expected result
+    the input should enter a sequence than query that sequence
+    output should show the result of the sequence"""
     items = []
     for idx in xrange(num_items):
         item = np.random.rand(item_length, input_dim).round()

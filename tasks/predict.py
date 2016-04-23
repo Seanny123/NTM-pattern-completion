@@ -133,5 +133,5 @@ def generate_predict_sequence(length, bits):
 
     inc_seq[:length/2, :] = seq
     inc_seq[length/2:length*3/4, :] = seq[:length/4]
-    comp_seq = seq[length*3/4:]
+    comp_seq = seq[length/4:]
     return (list(inc_seq), list(comp_seq))
