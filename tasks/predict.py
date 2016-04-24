@@ -23,7 +23,7 @@ def predict(ntm, seq_length, sess, print_=True):
     end_symbol = np.zeros([ntm.cell.input_dim], dtype=np.float32)
     end_symbol[1] = 1
 
-    seq = generate_copy_sequence(seq_length, ntm.cell.input_dim - 2)
+    seq = generate_predict_sequence(seq_length, ntm.cell.input_dim - 2)
 
     feed_dict = {input_:vec for vec, input_ in zip(seq, ntm.inputs)}
     feed_dict.update(
@@ -82,7 +82,7 @@ def predict_train(config, sess):
                    controller_layer_size=config.controller_layer_size,
                    write_head_size=config.write_head_size,
                    read_head_size=config.read_head_size)
-    ntm = NTM(cell, sess, config.min_length, config.max_length)
+    ntm = NTM(cell, sess, config.min_length, config.max_length*3)
 
     print(" [*] Initialize all variables")
     tf.initialize_all_variables().run()
@@ -92,7 +92,7 @@ def predict_train(config, sess):
     for idx in xrange(config.epoch):
         # generate a sequence of random length
         seq_length = randint(config.min_length, config.max_length) * 4
-        inc_seq, comp_seq = generate_copy_sequence(seq_length, config.input_dim - 2)
+        inc_seq, comp_seq = generate_predict_sequence(seq_length, config.input_dim - 2)
 
         # this somehow associates the desired inputs and outputs with the NTM
         feed_dict = {input_:vec for vec, input_ in zip(inc_seq, ntm.inputs)}
@@ -120,6 +120,7 @@ def predict_train(config, sess):
 
     print("Training Copy task finished")
     return cell, ntm
+
 
 def generate_predict_sequence(length, bits):
     """make a signal of 0.75 times length as the training data and the complete signal too"""

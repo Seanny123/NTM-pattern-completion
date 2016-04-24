@@ -9,7 +9,7 @@ flags.DEFINE_integer("epoch", 100000, "Epoch to train [100000]")
 flags.DEFINE_integer("input_dim", 10, "Dimension of input [10]")
 flags.DEFINE_integer("output_dim", 10, "Dimension of output [10]")
 flags.DEFINE_integer("min_length", 1, "Minimum length of input sequence [1]")
-flags.DEFINE_integer("max_length", 5, "Maximum length of output sequence [5]")
+flags.DEFINE_integer("max_length", 4, "Maximum length of output sequence [5]")
 flags.DEFINE_integer("controller_layer_size", 1, "The size of LSTM controller [1]")
 flags.DEFINE_integer("write_head_size", 1, "The number of write head [1]")
 flags.DEFINE_integer("read_head_size", 1, "The number of read head [1]")
@@ -21,7 +21,8 @@ FLAGS = flags.FLAGS
 def main(_):
     pp.pprint(flags.FLAGS.__flags)
 
-    with tf.device('/cpu:0'), tf.Session() as sess:
+    with tf.device('/cpu:0'), tf.Session(config=tf.ConfigProto(
+    intra_op_parallelism_threads=16)) as sess:
         if FLAGS.task == 'copy':
             if FLAGS.is_train:
                 cell, ntm = copy_train(FLAGS, sess)
@@ -81,4 +82,4 @@ def main(_):
             predict(ntm, FLAGS.test_max_length*3/3, sess)
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.app.run(main)
