@@ -190,7 +190,7 @@ class NTM(object):
             loss = sequence_loss(logits=self.outputs[seq_length],
                                 targets=self.true_outputs[0:seq_length],
                                 weights=[1] * seq_length,
-                                num_decoder_symbols=-1, # trash
+                                #num_decoder_symbols=-1, # trash
                                 average_across_timesteps=False,
                                 average_across_batch=False,
                                 softmax_loss_function=\
