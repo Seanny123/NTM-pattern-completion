@@ -1,99 +1,95 @@
-import matplotlib.pyplot as plt
-# import seaborn as sns
 import numpy as np
-import tasks
 import ipdb
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+from helper import *
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.recurrent import LSTM
 
 #Parameters
-t_forward=5 #generative
+timesteps=100 #length of data (columns)
+items=20 #height of data (rows)
+t_back=10 #length of sequence to input to LSTM for training/prediction
+t_forward=50 #length of sequence for LSTM to predict
+train_on=0 #using the column that is n-1 timesteps ahead of the training data as y_train
 batch_size=16
 epochs=100
 lstm_size=64
-samples_plot=10
 samples_train=1000
-samples_test=100
+samples_test=500
 optimizer='adam' #rmsprop, sgd, adam
 final_activation='hard_sigmoid'
 loss='mse' #mse, categorical_crossentropy
+pattern='random'
+filename='lstm_main'
 
+params={
+    'timesteps':timesteps, 
+    'items':items, 
+    't_back':t_back,
+    't_forward':t_forward,
+    'train_on':train_on,
+    'batch_size':batch_size,
+    'epochs':epochs,
+    'lstm_size':lstm_size,
+    'samples_train':samples_train,
+    'samples_test':samples_test,
+    'optimizer':optimizer,
+    'final_activation':final_activation,
+    'loss':loss,
+    'pattern':pattern,
+    'filename':filename,
+}
 
 print "Generating Data..."
-in_timesteps=20
-in_pixels=20
-inc_res, res = tasks.generate_predict_sequence(in_timesteps, in_pixels) #from NTM-pattern-completion
-predict_train, predict_test = np.array(inc_res), np.array(res) 
-timesteps=in_timesteps/2 #output of generate_predict_secquence is 0.75*in_timesteps (last 0.25 repeated)
-pixels=in_pixels+2 #output of generate_predict_secquence is in_pixels+2
-t_back=in_timesteps/4
+X_train, y_train, X_test, y_test = make_data(timesteps, items, samples_train,
+                                                samples_test, t_back, t_forward, pattern)
 
-# cut the image in semi-redundant sequences of length 't_back' to use as training data
-# then use the next entry as the correct output
-X_train=np.zeros((samples_train,t_back,pixels), dtype=np.int32)
-X_test=np.zeros((samples_test,t_back,pixels), dtype=np.int32)
-y_train=np.zeros((samples_train,pixels), dtype=np.int32)
-y_test=np.zeros((samples_test,pixels), dtype=np.int32)
-y_ahead=np.zeros((samples_test,t_forward,pixels), dtype=np.int32)
-
-for i in range(samples_train):
-    start=np.random.randint(timesteps-1)
-    X_train[i]=predict_train[start: start+t_back]
-    y_train[i]=predict_train[start+t_back+1]
-for i in range(samples_test):
-    start=np.random.randint(timesteps-1) #for whole dataset
-    X_test[i]=predict_train[start: start+t_back]
-    y_test[i]=predict_train[start+t_back+1]
-    # y_ahead[i]=predict_train[np.mod(start+t_back+t_forward,timesteps+t_back)]
-    y_ahead[i]=predict_train.take(range(start+t_back+1,start+t_back+1+t_forward),axis=0,mode='wrap')
-
-# print X_train.shape,y_train.shape,y_ahead.shape
-# print X_test.shape,y_test.shape,y_ahead.shape
 
 print "Building LSTM..."
 model = Sequential()
-model.add(LSTM(lstm_size, input_shape=(t_back, pixels)))
-model.add(Dropout(0.2))
-model.add(Dense(pixels))
-model.add(Dropout(0.2))
+model.add(LSTM(lstm_size, input_shape=(t_back, items)))
+model.add(Dropout(0.25))
+model.add(Dense(items))
+model.add(Dropout(0.25))
 model.add(Activation(final_activation))
 model.compile(loss=loss, optimizer=optimizer)
 
+
 print 'Training...'
-model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=epochs, validation_data=(X_test, y_test))
+model.fit(X_train, y_train[:,train_on], batch_size=batch_size, nb_epoch=epochs,
+            validation_data=(X_test, y_test[:,train_on]))
 
-def predict_generative(model, x_test, y_ahead, batch_size, t_forward):
-    predict=np.zeros((samples_test,t_forward,pixels))
-    #to generate next predict, take an decreasing number of timesteps from xtest data
-    #and append i predictions timesteps onto the end.
-    for i in range(t_forward):
-        #from x_test: all sample points, t_back-i timesteps forward
-        #from predict: i timesteps forward
-        new_xtest=np.concatenate((x_test[:,i:], predict[:,:i]),axis=1)
-        predict[:,i]=model.predict(new_xtest, batch_size=batch_size)
-    evaluate=model.evaluate(new_xtest,y_ahead[:,-1])
-    return evaluate, predict 
 
-print 'Evaluating...'
-evaluations = model.evaluate(X_test, y_test, batch_size=batch_size)
-predictions = model.predict(X_test,batch_size=batch_size)
-evaluate_ahead, predict_forward = predict_generative(model,X_test,y_ahead,batch_size,t_forward)
-print 'Evaluation on "%s" loss function:' %loss
-print 'One ahead: %s' %evaluations
-print '%s ahead: %s' %(t_forward, evaluate_ahead)
+print 'Predicting and Evaluating...'
+predict = predict_generative(model,X_test,batch_size,t_forward)
+df_evaluate = evaluate_generative(predict, y_test, loss) #returns pandas dataframe
 
-figure, (ax1, ax2) = plt.subplots(1, 2)
-# sns.set(style='darkgrid',context='paper')
-# ax1.imshow(predictions[:samples_plot].T, cmap='gray', interpolation='none')
-# ax2.imshow(y_test[:samples_plot].T, cmap='gray', interpolation='none')
-# plot_correct=np.concatenate((X_test[0,:t_back],y_ahead[0,:t_forward]),axis=0).T
-# plot_predict=np.concatenate((X_test[0,:t_back],predict_forward[0,:t_forward]),axis=0).T
-plot_predict=predict_forward[0,:t_forward].T
-plot_correct=y_ahead[0,:t_forward].T
-ax1.imshow(plot_predict, cmap='gray', interpolation='none')
-ax2.imshow(plot_correct, cmap='gray', interpolation='none')
+
+print 'Exporting Data...'
+root=os.getcwd()
+os.chdir(root+'/data/')
+addon=str(np.random.randint(0,100000))
+fname=filename+addon
+df_evaluate.to_pickle(fname+'_data.pkl')
+param_df=pd.DataFrame([params])
+param_df.reset_index().to_json(fname+'_params.json',orient='records')
+
+
+print 'Plotting...'
+sns.set(context='poster',style='white'):
+figure1, (ax1, ax2) = plt.subplots(1, 2)
+ax1.imshow(predict[0,:t_forward].T, cmap='gray', interpolation='none')
+ax2.imshow(y_test[0,:t_forward].T, cmap='gray', interpolation='none')
 ax1.set(xlabel='time',ylabel='',title='predictions',xticks=[],yticks=[])
 ax2.set(xlabel='time',ylabel='',title='correct',xticks=[],yticks=[])
-# plt.tick_params(axis='x',which='both',bottom='off',top='off',labelbottom='off')
+figure1.savefig(fname+'_example.png')
+plt.show()
+
+figure2, ax3, = plt.subplots(1, 1)
+sns.barplot(x="t_forward",y="mse",data=df_evaluate,ax=ax3)
+figure2.savefig(fname+'_error.png')
 plt.show()
